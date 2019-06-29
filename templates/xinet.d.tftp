@@ -1,0 +1,16 @@
+{% for k,v in tftp.items() %}
+# config for {{k}}
+service tftp
+{
+  protocol        = udp
+  port            = 69
+  socket_type     = dgram
+  wait            = yes
+  user            = root
+  server          = /usr/sbin/in.tftpd
+  server_args     = -u tftp -s {{ v.path }}
+  disable         = no
+  bind            = {{ v.bind }}
+  only_from       = {{ v.only_from }}
+}
+{% endfor %}

@@ -1,0 +1,102 @@
+---
+- name: install TFTDd package
+  apt_rpm:
+    pkg: tftpd
+    state: installed
+
+- name: include tftp vars
+  include_vars:
+    file: conf/stacks/{{stack_name}}/apps/tftp.yml
+    name: tftp
+
+- name: create folder
+  file:
+    path: "{{item.value.path}}"
+    owner: "tftp"
+    group: "tftp"
+    mode: "0750"
+    state: directory
+  with_dict: "{{tftp}}"
+
+- name: "[TODO] fix me"
+  file:
+    path: "{{tftp.voip.path}}/yealink"
+    owner: "tftp"
+    group: "tftp"
+    mode: "0750"
+    state: directory
+
+- name: generate common provisioning configs
+  template:
+    src: "{{tftp.voip.commons[item].model}}.cfg.j2"
+    dest: "{{tftp.voip.path}}/yealink/{{tftp.voip.commons[item].filename}}"
+    owner: "tftp"
+    group: "tftp"
+    mode: "0444"
+  with_items: "{{tftp.voip.commons}}"
+
+- name: "generate individual provisioning configs"
+  template:
+    src: "account_{{tftp.voip.devices[item].model}}.cfg.j2"
+    dest: "{{tftp.voip.path}}/yealink/{{tftp.voip.devices[item].filename}}"
+    owner: "tftp"
+    group: "tftp"
+    mode: "0444"
+  with_items: "{{tftp.voip.devices}}"
+
+- name: generate xinetd config
+  template:
+    src: "xinet.d.tftp"
+    dest: "/etc/xinetd.d/tftpd"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+  notify: restart xinetd
+
+- name: "[TODO] fix me"
+  file:
+    path: "{{tftp.pxe.path}}/{{item}}"
+    owner: "tftp"
+    group: "tftp"
+    mode: "0750"
+    state: directory
+  with_items:
+  - "pxelinux.cfg"
+  - "alt0"
+
+- name: copy pxelinux.0 to the tftp dir
+  copy:
+    src: "pxelinux.0"
+    dest: "{{tftp.pxe.path}}/pxelinux.0"
+    mode: "0444"
+    owner: "tftp"
+    group: "tftp"
+
+- name: copy kernels to the tftp dir
+  copy:
+    src: "{{item}}"
+    dest: "{{tftp.pxe.path}}/alt0/{{item}}"
+    mode: "0444"
+    owner: "tftp"
+    group: "tftp"
+  with_items:
+  - "full.cz"
+  - "vmlinuz"
+
+- debug: msg="{{tftp}}"
+
+- name: generate pxe menu
+  template:
+    src: "pxelinux.cfg/altlinux.msg"
+    dest: "{{tftp.pxe.path}}/pxelinux.cfg/altlinux.msg"
+    owner: "tftp"
+    group: "tftp"
+    mode: "0444"
+
+- name: generate pxe config
+  template:
+    src: "pxelinux.cfg/default"
+    dest: "{{tftp.pxe.path}}/pxelinux.cfg/default"
+    owner: "tftp"
+    group: "tftp"
+    mode: "0444"

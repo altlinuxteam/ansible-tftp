@@ -1,0 +1,13 @@
+default local
+timeout 60
+prompt 1
+display pxelinux.cfg/altlinux.msg
+
+label local
+localboot 0
+
+{% for i in tftp.pxe.netinst %}
+label {{i.name}}
+kernel alt0/vmlinuz
+append initrd=alt0/full.cz live fastboot automatic=method:{{i.proto}},network:dhcp,server:{{i.server}},directory:{{i.directory}} stagename=altinst ramdisk_size={{i.ramdisk_size}}
+{% endfor %}

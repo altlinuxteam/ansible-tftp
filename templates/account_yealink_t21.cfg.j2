@@ -5,10 +5,14 @@ account.1.display_name = {{tftp.voip.devices[item].display_name}}
 account.1.user_name = {{tftp.voip.devices[item].user_name}}
 account.1.auth_name = {{tftp.voip.devices[item].auth_name}}
 account.1.password= {{tftp.voip.devices[item].password}}
-account.1.sip_server_host.legacy = {{tftp.voip.devices[item].sip_server.address}}
+account.1.sip_server_host.legacy = {{tftp.voip.devices[item].sip_server[0].address}}
 account.1.outbound_proxy_enable = {{tftp.voip.devices[item].outbound_proxy_enable}}
 account.1.nat.nat_traversal = {{tftp.voip.devices[item].nat.nat_traversal}}
-account.1.sip_server.1.address = {{tftp.voip.devices[item].sip_server.address}}
-account.1.sip_server.1.transport_type = {{tftp.voip.devices[item].sip_server.transport_type}}
-account.1.outbound_proxy.1.address = {{tftp.voip.devices[item].outbound_proxy.address}}
+{% for s in tftp.voip.devices[item].sip_server %}
+account.1.sip_server.{{loop.index}}.address = {{s.address}}
+account.1.sip_server.{{loop.index}}.transport_type = {{s.transport_type}}
+{% endfor %}
+{% for o in tftp.voip.devices[item].outbound_proxy %}
+account.1.outbound_proxy.{{loop.index}}.address = {{o.address}}
+{% endfor %}
 voice_mail.message_key.mode = {{tftp.voip.devices[item].voice_mail.message_key.mode}}

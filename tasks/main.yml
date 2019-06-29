@@ -65,16 +65,16 @@
   - "alt0"
 
 - name: copy pxelinux.0 to the tftp dir
-  copy:
-    src: "pxelinux.0"
+  get_url:
+    url: "{{tftp.pxe.load_from}}/pxelinux.0"
     dest: "{{tftp.pxe.path}}/pxelinux.0"
     mode: "0444"
     owner: "tftp"
     group: "tftp"
 
 - name: copy kernels to the tftp dir
-  copy:
-    src: "{{item}}"
+  get_url:
+    url: "{{tftp.pxe.load_from}}/{{item}}"
     dest: "{{tftp.pxe.path}}/alt0/{{item}}"
     mode: "0444"
     owner: "tftp"

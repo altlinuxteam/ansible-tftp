@@ -1,13 +1,56 @@
-default local
-timeout 60
-prompt 1
-display pxelinux.cfg/altlinux.msg
+UI vesamenu.c32
+DEFAULT local
+TIMEOUT 150
+PROMPT 1
 
-label local
+MENU TITLE Network boot menu
+MENU AUTOBOOT Boot from local disk in # seconds
+MENU BACKGROUND basealt_640.jpg
+
+LABEL local
+MENU LABEL Boot from hard disk
 localboot 0
 
-{% for i in tftp.pxe.netinst %}
-label {{i.name}}
-kernel alt0/vmlinuz
-append initrd=alt0/full.cz live fastboot automatic=method:{{i.proto}},network:dhcp,server:{{i.server}},directory:{{i.directory}} stagename=altinst ramdisk_size={{i.ramdisk_size}}
+MENU SEPARATOR
+
+{% for menu in tftp.pxe.netinst %}
+MENU BEGIN {{ menu.name }}
+	MENU TITLE {{ menu.title }}
+
+{% for entry in menu.entries %}
+	label {{ entry.name }}
+	MENU LABEL {{ entry.descr }}
+	KERNEL {{ tftp.pxe.netinst_proto }}://{{ tftp.pxe.netinst_server }}/{{ entry.directory }}/syslinux/alt0/vmlinuz
+	APPEND live fastboot automatic=method:{{ tftp.pxe.netinst_proto }},network:dhcp,server:{{ tftp.pxe.netinst_server }},directory:{{ entry.directory }} stagename=altinst ramdisk_size={{ entry.ramdisk_size }} {% if entry.extraopts is defined %}{{ entry.extraopts }}{% endif %}
+
+	INITRD {{ tftp.pxe.netinst_proto}}://{{ tftp.pxe.netinst_server }}/{{ entry.directory }}/syslinux/alt0/full.cz
+
 {% endfor %}
+MENU END
+
+{% endfor %}
+
+MENU BEGIN diag
+	MENU TITLE Service utilities
+
+	LABEL rescue
+	MENU LABEL ALT Linux Rescue Disk
+	LINUX {{ tftp.pxe.netinst_proto }}://{{ tftp.pxe.netinst_server }}/iso/regular-rescue-latest-x86_64/syslinux/alt0/vmlinuz
+	APPEND live fastboot splash=0 showopts stagename=rescue ramdisk_size=462925 automatic=method:{{ tftp.pxe.netinst_proto }},network:dhcp,server:{{ tftp.pxe.netinst_server }},directory:/iso/regular-rescue-latest-x86_64
+	INITRD {{ tftp.pxe.netinst_proto }}://{{ tftp.pxe.netinst_server }}/iso/regular-rescue-latest-x86_64/syslinux/alt0/full.cz
+
+	LABEL hdt
+	MENU LABEL Hardware information
+	COM32 hdt.c32
+MENU END
+
+MENU SEPARATOR
+
+LABEL reboot
+MENU LABEL Reboot
+COM32 reboot.c32
+
+LABEL halt
+MENU LABEL Shutdown
+COM32 poweroff.c32
+

@@ -85,6 +85,7 @@
   get_url:
     url: "{{ tftp.pxe.syslinux_url }}"
     dest: "{{ syslinux_package }}"
+    checksum: "{{ tftp.pxe.syslinux_cksum }}"
   when: tftp.pxe is defined
 
 - name: Extract PXELINUX BIOS modules

@@ -6,7 +6,7 @@
 
 - name: include tftp vars
   include_vars:
-    file: conf/stacks/{{stack_name}}/apps/tftp.yml
+    file: "{{ stack_path }}/{{stack_name}}/apps/tftp.yml"
     name: tftp
 
 - name: create folder
@@ -25,6 +25,7 @@
     group: "tftp"
     mode: "0750"
     state: directory
+  when: tftp.voip is defined
 
 - name: generate common provisioning configs
   template:
@@ -34,6 +35,7 @@
     group: "tftp"
     mode: "0444"
   with_items: "{{tftp.voip.commons}}"
+  when: tftp.voip is defined
 
 - name: "generate individual provisioning configs"
   template:
@@ -43,6 +45,7 @@
     group: "tftp"
     mode: "0444"
   with_items: "{{tftp.voip.devices}}"
+  when: tftp.voip is defined
 
 - name: generate xinetd config
   template:
@@ -53,7 +56,7 @@
     mode: "0644"
   notify: restart xinetd
 
-- name: "[TODO] fix me"
+- name: Create PXE directory structure
   file:
     path: "{{tftp.pxe.path}}/{{item}}"
     owner: "tftp"
@@ -62,36 +65,79 @@
     state: directory
   with_items:
   - "pxelinux.cfg"
-  - "alt0"
+  when: tftp.pxe is defined
 
-- name: copy pxelinux.0 to the tftp dir
-  get_url:
-    url: "{{tftp.pxe.load_from}}/pxelinux.0"
-    dest: "{{tftp.pxe.path}}/pxelinux.0"
-    mode: "0444"
+- name: Deploy boot menu picture
+  copy:
+    src: "basealt_640.jpg"
+    dest: "{{ tftp.pxe.path }}/basealt_640.jpg"
     owner: "tftp"
     group: "tftp"
-
-- name: copy kernels to the tftp dir
-  get_url:
-    url: "{{tftp.pxe.load_from}}/{{item}}"
-    dest: "{{tftp.pxe.path}}/alt0/{{item}}"
     mode: "0444"
+  when: tftp.pxe is defined
+
+- set_fact:
+    syslinux_package: "/tmp/{{ tftp.pxe.syslinux_url | basename }}"
+    syslinux_bios_path: "syslinux-6.03/bios"
+  when: tftp.pxe is defined
+
+- name: Download recent SYSLINUX package
+  get_url:
+    url: "{{ tftp.pxe.syslinux_url }}"
+    dest: "{{ syslinux_package }}"
+    checksum: "{{ tftp.pxe.syslinux_cksum }}"
+  when: tftp.pxe is defined
+
+- name: Extract PXELINUX BIOS modules
+  shell: |
+    tar -xz \
+      -f {{ syslinux_package }} \
+      --transform='s/.*\///' \
+      -C {{ item.dest }} \
+      {{ item.file }}
+  loop:
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/core/lpxelinux.0" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/libutil/libutil.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/lib/libcom32.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/menu/vesamenu.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/cmenu/libmenu/libmenu.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/elflink/ldlinux/ldlinux.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/gpllib/libgpl.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/hdt/hdt.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/modules/linux.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/modules/ifcpu64.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/modules/poweroff.c32" }
+  - { dest: "{{ tftp.pxe.path }}/", file: "{{ syslinux_bios_path }}/com32/modules/reboot.c32" }
+  when: tftp.pxe is defined
+
+- name: Remove SYSLINUX archive
+  file:
+    path: "{{ syslinux_package }}"
+    state: absent
+  when: tftp.pxe is defined
+
+- name: Set necessary file permissions
+  file:
+    path: "{{ tftp.pxe.path }}/{{ item }}"
     owner: "tftp"
     group: "tftp"
-  with_items:
-  - "full.cz"
-  - "vmlinuz"
+    mode: "0444"
+  loop:
+  - "lpxelinux.0"
+  - "libutil.c32"
+  - "libcom32.c32"
+  - "vesamenu.c32"
+  - "libmenu.c32"
+  - "ldlinux.c32"
+  - "libgpl.c32"
+  - "hdt.c32"
+  - "linux.c32"
+  - "ifcpu64.c32"
+  - "poweroff.c32"
+  - "reboot.c32"
+  when: tftp.pxe is defined
 
 - debug: msg="{{tftp}}"
-
-- name: generate pxe menu
-  template:
-    src: "pxelinux.cfg/altlinux.msg"
-    dest: "{{tftp.pxe.path}}/pxelinux.cfg/altlinux.msg"
-    owner: "tftp"
-    group: "tftp"
-    mode: "0444"
 
 - name: generate pxe config
   template:
@@ -100,3 +146,5 @@
     owner: "tftp"
     group: "tftp"
     mode: "0444"
+  when: tftp.pxe is defined
+
